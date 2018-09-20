@@ -40,12 +40,14 @@ object OraToCass extends App {
 
  // case class DDATE(ddate :Int)
 
+  /*
   spark.sparkContext.addJar("C:\\oratocass\\project\\lib\\ojdbc6.jar")
   spark.sparkContext.addJar("C:\\oratocass\\project\\lib\\spark-cassandra-connector-assembly-2.3.2-11-gdbe6c052.jar")
   spark.sparkContext.addJar("C:\\oratocass\\project\\lib\\jackson-annotations-2.9.6.jar")
   spark.sparkContext.addJar("C:\\oratocass\\project\\lib\\jackson-core-2.9.6.jar")
   spark.sparkContext.addJar("C:\\oratocass\\project\\lib\\jackson-databind-2.9.6.jar")
   spark.sparkContext.addJar("C:\\oratocass\\project\\lib\\jackson-module-scala_2.12-2.9.6.jar")
+  */
 
   val ddateList = spark.read
   .format("jdbc")
