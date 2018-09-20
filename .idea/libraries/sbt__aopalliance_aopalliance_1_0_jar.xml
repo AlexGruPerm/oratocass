@@ -2,6 +2,12 @@
   <library name="sbt: aopalliance:aopalliance:1.0:jar">
     <CLASSES>
       <root url="jar://$USER_HOME$/.ivy2/cache/aopalliance/aopalliance/jars/aopalliance-1.0.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../oratocass/project/lib/jackson-annotations-2.9.6.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../oratocass/project/lib/jackson-core-2.9.6.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../oratocass/project/lib/jackson-databind-2.9.6.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../oratocass/project/lib/jackson-module-scala_2.12-2.9.6.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../oratocass/project/lib/ojdbc6.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../oratocass/project/lib/spark-cassandra-connector-assembly-2.3.2-11-gdbe6c052.jar!/" />
     </CLASSES>
     <JAVADOC />
     <SOURCES>

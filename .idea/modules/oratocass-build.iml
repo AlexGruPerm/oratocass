@@ -99,6 +99,12 @@
           <root url="jar://$USER_HOME$/.sbt/boot/scala-2.12.6/org.scala-sbt/sbt/1.2.3/zinc-ivy-integration_2.12-1.2.2.jar!/" />
           <root url="jar://$USER_HOME$/.sbt/boot/scala-2.12.6/org.scala-sbt/sbt/1.2.3/zinc-persist_2.12-1.2.2.jar!/" />
           <root url="jar://$USER_HOME$/.sbt/boot/scala-2.12.6/org.scala-sbt/sbt/1.2.3/zinc_2.12-1.2.2.jar!/" />
+          <root url="jar://$MODULE_DIR$/../../../oratocass/project/lib/jackson-annotations-2.9.6.jar!/" />
+          <root url="jar://$MODULE_DIR$/../../../oratocass/project/lib/jackson-core-2.9.6.jar!/" />
+          <root url="jar://$MODULE_DIR$/../../../oratocass/project/lib/jackson-databind-2.9.6.jar!/" />
+          <root url="jar://$MODULE_DIR$/../../../oratocass/project/lib/jackson-module-scala_2.12-2.9.6.jar!/" />
+          <root url="jar://$MODULE_DIR$/../../../oratocass/project/lib/ojdbc6.jar!/" />
+          <root url="jar://$MODULE_DIR$/../../../oratocass/project/lib/spark-cassandra-connector-assembly-2.3.2-11-gdbe6c052.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />
