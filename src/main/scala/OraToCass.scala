@@ -124,24 +124,14 @@ def getTDataByDDateIDPok(inDDate :Int, inIDPok :Int) = {
 
 
   logger.info(" ====================================================================== ")
+  val t1_common = System.currentTimeMillis
 
-  //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   val dsDdatesPoks = getDistinctDDatesIDPoks()
   logger.info("--------------------  dsDdatesPoks.count()="+dsDdatesPoks.count())
 
-  /*
-  val t1 = System.currentTimeMillis
-  val t_data_ds = getTDataByDDateIDPok(20180601, 2200)
-  logger.info(" ----------------------------------------   t_data_ds.count()=" + t_data_ds.count())
-  val t2 = System.currentTimeMillis
+  //dsDdatesPoks filter(r => r.ddate == 20180601 && Seq(168,502,2000,2100).contains(r.id_pok)) explain()
 
-  logger.info("                                                                  ")
-  logger.info(" >>>>>>>>   Duration getTDataByDDateIDPok = "+(t2 - t1) + " msecs.")
-  logger.info("                                                                  ")
-*/
-
-
-  dsDdatesPoks filter(r => r.ddate == 20180601 /*&& r.id_pok == 2200*/) foreach {
+  dsDdatesPoks filter(r => r.ddate == 20180601 && Seq(168,502,2000,2100).contains(r.id_pok)) foreach {
     thisRow =>
 
       val t1 = System.currentTimeMillis
@@ -157,45 +147,18 @@ def getTDataByDDateIDPok(inDDate :Int, inIDPok :Int) = {
       logger.info("----------------------------------------------------------")
       logger.info("                                                          ")
       logger.info(" >   DDATE: " + thisRow.ddate + " ID_POK:" + thisRow.id_pok)
-      logger.info(" >   Dur.  = "+(t2 - t1) + " msecs.                       ")
+      logger.info(" >   Dur.  = "+(t2 - t1) + " ms.                          ")
       logger.info("                                                          ")
       logger.info("----------------------------------------------------------")
   }
 
-/*
-logger.info(" ====================================================================== ")
-logger.info("ddate.count()="+ddateList.count())
-ddateList map(d => d.ddate) filter(_ == 20180601) foreach {
-  thisDdate =>
-    logger.info(" thisDdate = " + thisDdate)
+  val t2_common = System.currentTimeMillis
 
-    val poksList = getPoksByDDate(thisDdate)
-    logger.info(">>>>> begin poks count >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-    logger.info("  poksList.count()=" + poksList.count())
-    logger.info("<<<<< end poks count <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+  logger.info("----------------------------------------------------------")
+  logger.info("                                                          ")
+  logger.info(" >  COMMON DURATION = "+(t2_common - t1_common) + " ms.   ")
+  logger.info("                                                          ")
+  logger.info("----------------------------------------------------------")
 
-/*
-    poksList filter(p => p.id_pok == 2200) map(p => p.id_pok) foreach {
-      thisPok =>
-        val t_data_ds = getTDataByDDateIDPok(thisDdate, thisPok)
-        logger.info("  thisPok=" + thisPok + " t_data_ds.count()=" + t_data_ds.count())
-
-    }
-    */
-}
-*/
-
-//ddateList.show(10)
-
-/*
-  .option("fetchSize", "100")
-  .option("partitionColumn", "DDATE")
-  .option("lowerBound", 20160601)
-  .option("upperBound", 20180601)
-  .option("numPartitions", parallelismLevel)
-*/
-
-//ddateList.unpersist()
-
-logger.info(" ================== END [OraToCass] ================================")
+ logger.info(" ================== END [OraToCass] ================================")
 }
