@@ -23,7 +23,8 @@ object OraToCass extends App {
 
   //val warehouseLocation = new File("spark-warehouse").getAbsolutePath
 
-  val spark = SparkSession.builder().master(/*"spark://172.18.16.71:7077"*/"local")
+  val spark = SparkSession.builder()
+    .master(/*"spark://172.18.16.9:7077"*/"local[*]")
     .appName("oratocass")
     //.config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
     .config("spark.driver.memory", "4G")
@@ -36,21 +37,44 @@ object OraToCass extends App {
     //.enableHiveSupport()
     .config("spark.cassandra.connection.host", "127.0.0.1")
    // .config("spark.driver.allowMultipleContexts","true")
-    .config("spark.cassandra.input.split.size_in_mb","128")
-    .config("spark.cassandra.input.fetch.size_in_rows","10000")
+    //.config("spark.cassandra.input.split.size_in_mb","128")
+    //.config("spark.cassandra.input.fetch.size_in_rows","10000")
     .getOrCreate()
+
+
+  val spark_data = SparkSession.builder()
+    .master(/*"spark://172.18.16.9:7077"*/"local[*]")
+    .appName("oratocass")
+    //.config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
+    .config("spark.driver.memory", "4G")
+    .config("spark.executor.memory", "1G")
+    //.config("spark.sql.warehouse.dir",warehouseLocation)
+    //.config("hive.exec.dynamic.partition","true")
+    //.config("hive.exec.dynamic.partition.mode","nonstrict")
+    //.config("hive.server2.idle.operation.timeout","10000ms")
+    //.config("hive.server2.idle.session.timeout","10000ms")
+    //.enableHiveSupport()
+    .config("spark.cassandra.connection.host", "127.0.0.1")
+    // .config("spark.driver.allowMultipleContexts","true")
+    //.config("spark.cassandra.input.split.size_in_mb","128")
+    //.config("spark.cassandra.input.fetch.size_in_rows","10000")
+    .getOrCreate()
+
 
   val user_login       = "MSK_ARM_LEAD"
   val user_password    = "MSK_ARM_LEAD"
   val oracleUrl        = "10.127.24.11:1521/test"
   val url_string       = "jdbc:oracle:thin:"+user_login+"/"+user_password+"@//"+oracleUrl
+  //jdbcUrl = "jdbc:mysql://{0}:{1}/{2}?user={3}&password={4}".format(jdbcHostname, jdbcPort, jdbcDatabase, username, password)
   val parallelismLevel = 1
 
-  case class DDATE(ddate :Int)
+  //case class DDATE(ddate :Int)
 
-  case class POK(id_pok :Int)
+  //case class POK(id_pok :Int)
 
-  case class T_DATA_ROW(ddate: Int, id_pok :Int, id_row :String,sval :String)
+  case class DDATE_POK(ddate :Int,id_pok :Int)
+
+  case class T_DATA_ROW(ddate: Int, id_pok :Int, id_row :String, sval :String)
 
   /*
   spark.sparkContext.addJar("C:\\oratocass\\project\\lib\\ojdbc6.jar")
@@ -59,117 +83,119 @@ object OraToCass extends App {
 
   import spark.implicits._
 
-def getDistinctDDates() = {
-  val ddateList = spark.read.format("jdbc")
-    .option("url", url_string)
-    //.option("http.header.Connection","close")
-    .option("dbtable", "Javachain_Oracle.Javachain_log")
-    .option("user", "MSK_ARM_LEAD")
-    .option("password", "MSK_ARM_LEAD")
-    .option("dbtable", s"(select distinct DDATE from t_data)")
-    //.option("fetchSize", "1000")
-    .option("customSchema", "DDATE INT")
-    .load().as[DDATE].cache()
-  ddateList
+def getDistinctDDatesIDPoks() = {
+val ds = spark.read.format("jdbc")
+  .option("url", url_string)
+  .option("dbtable", "Javachain_Oracle.Javachain_log")
+  .option("user", "MSK_ARM_LEAD")
+  .option("password", "MSK_ARM_LEAD")
+  .option("dbtable", s"(select distinct DDATE,ID_POK from t_data order by 1,2)")
+  //.option("fetchSize", "1000")
+  .option("numPartitions", "1")
+  .option("customSchema", "DDATE INT,ID_POK INT")
+  .load().as[DDATE_POK].cache()
+
+  ds.printSchema()
+
+  logger.info("ds.getClass.getName="+ds.getClass.getName)
+  logger.info("ds.getClass.getTypeName="+ds.getClass.getTypeName)
+  logger.info("ds.isLocal="+ds.isLocal)
+
+ds
 }
 
-  val ddateList = getDistinctDDates()
-
-  ddateList.printSchema()
-
-  logger.info("ddateList.getClass.getName="+ddateList.getClass.getName)
-  logger.info("ddateList.getClass.getTypeName="+ddateList.getClass.getTypeName)
-  logger.info("ddateList.isLocal="+ddateList.isLocal)
-
-  ddateList.persist()
-
-  def getPoksByDDate(inDDate :Int) = {
-
-    val poksSql = s"(select distinct ID_POK from t_data where ddate="+inDDate+" order by 1)"
 
 
-    val isPoksList = spark.read
-      .format("jdbc")
-      .option("url", url_string)
-      .option("dbtable", poksSql)
-      .option("user", user_login)
-      .option("password", user_password)
-      .option("driver", "oracle.jdbc.driver.OracleDriver")
-      .option("customSchema","ID_POK INT")
-    .load().as[POK].cache()
+def getTDataByDDateIDPok(inDDate :Int, inIDPok :Int) = {
 
-    /*
-    val isPoksList = spark.read.format("jdbc")
-      .option("url",url_string)
-      .option("dbtable", "Javachain_Oracle.Javachain_log")
-      .option("user",user_login)
-      .option("password", user_password)
-      .option("dbtable",poksSql)
-      .option("customSchema","ID_POK INT")
-      //.option("fetchSize", "1000")
-      .option("numPartitions", "1")
-      .load().as[POK].cache()
-    */
+  val dataSql = s"(select DDATE,ID_POK,ID_ROW,VAL as SVAL from T_DATA subpartition (PART_"+inDDate+"_POK_"+inIDPok+") order by 1,2,3)"
 
-    isPoksList
-  }
+  val t_data_ds = spark.read.format("jdbc")
+    .option("url",url_string)
+    .option("dbtable", "Javachain_Oracle.Javachain_log")
+    .option("user",user_login).option("password", user_password)
+    .option("dbtable",dataSql)
+    .option("numPartitions", "1")
+    .option("customSchema","DDATE INT, ID_POK INT, ID_ROW String, SVAL String")
+    .option("fetchSize", "10000")
+    .load().as[T_DATA_ROW].cache()
+  t_data_ds
+}
 
+
+  logger.info(" ====================================================================== ")
+
+  //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  val dsDdatesPoks = getDistinctDDatesIDPoks()
+  logger.info("--------------------  dsDdatesPoks.count()="+dsDdatesPoks.count())
 
   /*
-  def getTDataByDDateIDPok(inDDate :Int,inIDPok :Int) = {
+  val t1 = System.currentTimeMillis
+  val t_data_ds = getTDataByDDateIDPok(20180601, 2200)
+  logger.info(" ----------------------------------------   t_data_ds.count()=" + t_data_ds.count())
+  val t2 = System.currentTimeMillis
 
-    val dataSql = s"(select DDATE,ID_POK,ID_ROW,val as SVAL from t_data where ddate={0} and id_pok={1} order by 1,2,3)".format(inDDate,inIDPok)
-
-    val t_data_ds = spark.read.format("jdbc")
-      .option("url",url_string)
-      .option("dbtable", "Javachain_Oracle.Javachain_log")
-      .option("user",user_login).option("password", user_password)
-      .option("dbtable",dataSql)
-      // .option("dbtable",s"(select DDATE,ID_POK,ID_ROW,val as SVAL from t_data where ddate="+inDDate+" and id_pok="+inIDPok+" order by 1,2,3)")
-      .option("customSchema","ddate INT,id_pok INT, id_row String,sval String")
-      .option("fetchSize", "10000")
-      .load().as[T_DATA_ROW]
-    t_data_ds
-  }
-  */
-
-
-  logger.info(" ====================================================================== ")
-  //ddateList filter(d => d.ddate == 20180601) map(d => d.ddate) foreach {
-  ddateList map(d => d.ddate) filter(_ == 20180601) foreach {
-    thisDdate =>
-      logger.info(" thisDdate = " + thisDdate)
-
-      val poksList = getPoksByDDate(thisDdate)
-      logger.info(">>>>> begin poks count >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-      logger.info("  poksList.count()=" + poksList.count())
-      logger.info("<<<<< end poks count <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
-
-/*
-      poksList filter(p => p.id_pok == 2200) map(p => p.id_pok) foreach {
-        thisPok =>
-          val t_data_ds = getTDataByDDateIDPok(thisDdate, thisPok)
-          logger.info("  thisPok=" + thisPok + " t_data_ds.count()=" + t_data_ds.count())
-
-      }
-      */
-  }
-  logger.info(" ====================================================================== ")
-
-
-  //ddateList.show(10)
-
-/*
-    .option("fetchSize", "100")
-    .option("partitionColumn", "DDATE")
-    .option("lowerBound", 20160601)
-    .option("upperBound", 20180601)
-    .option("numPartitions", parallelismLevel)
+  logger.info("                                                                  ")
+  logger.info(" >>>>>>>>   Duration getTDataByDDateIDPok = "+(t2 - t1) + " msecs.")
+  logger.info("                                                                  ")
 */
 
 
+  dsDdatesPoks filter(r => r.ddate == 20180601 /*&& r.id_pok == 2200*/) foreach {
+    thisRow =>
 
-  ddateList.unpersist()
+      val t1 = System.currentTimeMillis
+      val t_data_ds = getTDataByDDateIDPok(thisRow.ddate, thisRow.id_pok)
+      logger.info(" t_data_ds.count()=" + t_data_ds.count())
+      val collect = spark_data.sparkContext.parallelize(t_data_ds.collect.toSeq)
 
-  logger.info("END [OraToCass]")
+      import com.datastax.spark.connector._
+      collect.saveToCassandra("msk_arm_lead", "t_data")
+
+      val t2 = System.currentTimeMillis
+
+      logger.info("----------------------------------------------------------")
+      logger.info("                                                          ")
+      logger.info(" >   DDATE: " + thisRow.ddate + " ID_POK:" + thisRow.id_pok)
+      logger.info(" >   Dur.  = "+(t2 - t1) + " msecs.                       ")
+      logger.info("                                                          ")
+      logger.info("----------------------------------------------------------")
+  }
+
+/*
+logger.info(" ====================================================================== ")
+logger.info("ddate.count()="+ddateList.count())
+ddateList map(d => d.ddate) filter(_ == 20180601) foreach {
+  thisDdate =>
+    logger.info(" thisDdate = " + thisDdate)
+
+    val poksList = getPoksByDDate(thisDdate)
+    logger.info(">>>>> begin poks count >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+    logger.info("  poksList.count()=" + poksList.count())
+    logger.info("<<<<< end poks count <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+
+/*
+    poksList filter(p => p.id_pok == 2200) map(p => p.id_pok) foreach {
+      thisPok =>
+        val t_data_ds = getTDataByDDateIDPok(thisDdate, thisPok)
+        logger.info("  thisPok=" + thisPok + " t_data_ds.count()=" + t_data_ds.count())
+
+    }
+    */
+}
+*/
+
+//ddateList.show(10)
+
+/*
+  .option("fetchSize", "100")
+  .option("partitionColumn", "DDATE")
+  .option("lowerBound", 20160601)
+  .option("upperBound", 20180601)
+  .option("numPartitions", parallelismLevel)
+*/
+
+//ddateList.unpersist()
+
+logger.info(" ================== END [OraToCass] ================================")
 }

@@ -9,7 +9,7 @@ libraryDependencies ++= Seq(
   "org.apache.spark" %% "spark-hive" % sparkVersion,
   "org.apache.spark" %% "spark-core" % sparkVersion,
   "org.apache.spark" %% "spark-sql" % sparkVersion,
-  "com.datastax.cassandra" % "cassandra-driver-core" % "3.5.0"
+  "com.datastax.spark" %% "spark-cassandra-connector" % "2.3.2"
 )
 
 unmanagedBase := baseDirectory.value / "lib"
