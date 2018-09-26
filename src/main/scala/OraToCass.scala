@@ -1,19 +1,6 @@
 import org.apache.spark.sql.SparkSession
 import org.slf4j.LoggerFactory
-
-/*
-import org.apache.spark.sql.Encoders
-
 import com.datastax.spark.connector._
-import org.apache.spark.SparkContext
-import org.apache.spark.SparkContext._
-import org.apache.spark.SparkConf
-import org.apache.spark.sql.{Row, SaveMode, SparkSession, SQLContext}
-
-import org.apache.spark.sql.types._
-import java.util.Properties
-import com.datastax.spark.connector._
-*/
 
 object OraToCass extends App {
 
@@ -39,27 +26,8 @@ object OraToCass extends App {
    // .config("spark.driver.allowMultipleContexts","true")
     //.config("spark.cassandra.input.split.size_in_mb","128")
     //.config("spark.cassandra.input.fetch.size_in_rows","10000")
+    .config("spark.sql.shuffle.partitions","10")
     .getOrCreate()
-
-
-  val spark_data = SparkSession.builder()
-    .master(/*"spark://172.18.16.9:7077"*/"local[*]")
-    .appName("oratocass")
-    //.config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
-    .config("spark.driver.memory", "4G")
-    .config("spark.executor.memory", "1G")
-    //.config("spark.sql.warehouse.dir",warehouseLocation)
-    //.config("hive.exec.dynamic.partition","true")
-    //.config("hive.exec.dynamic.partition.mode","nonstrict")
-    //.config("hive.server2.idle.operation.timeout","10000ms")
-    //.config("hive.server2.idle.session.timeout","10000ms")
-    //.enableHiveSupport()
-    .config("spark.cassandra.connection.host", "127.0.0.1")
-    // .config("spark.driver.allowMultipleContexts","true")
-    //.config("spark.cassandra.input.split.size_in_mb","128")
-    //.config("spark.cassandra.input.fetch.size_in_rows","10000")
-    .getOrCreate()
-
 
   val user_login       = "MSK_ARM_LEAD"
   val user_password    = "MSK_ARM_LEAD"
@@ -90,13 +58,11 @@ val ds = spark.read.format("jdbc")
   .option("user", "MSK_ARM_LEAD")
   .option("password", "MSK_ARM_LEAD")
   .option("dbtable", s"(select distinct DDATE,ID_POK from t_data order by 1,2)")
-  //.option("fetchSize", "1000")
   .option("numPartitions", "1")
   .option("customSchema", "DDATE INT,ID_POK INT")
   .load().as[DDATE_POK].cache()
 
   ds.printSchema()
-
   logger.info("ds.getClass.getName="+ds.getClass.getName)
   logger.info("ds.getClass.getTypeName="+ds.getClass.getTypeName)
   logger.info("ds.isLocal="+ds.isLocal)
@@ -108,6 +74,17 @@ ds
 
 def getTDataByDDateIDPok(inDDate :Int, inIDPok :Int) = {
 
+/*
+import java.util.Properties
+val df4parts = spark.
+  read.
+  jdbc(
+    url = "jdbc:postgresql:sparkdb",
+    table = "projects",
+    predicates = Array("id=1", "id=2", "id=3", "id=4"),
+    connectionProperties = new Properties())
+*/
+
   val dataSql = s"(select DDATE,ID_POK,ID_ROW,VAL as SVAL from T_DATA subpartition (PART_"+inDDate+"_POK_"+inIDPok+") order by 1,2,3)"
 
   val t_data_ds = spark.read.format("jdbc")
@@ -118,8 +95,11 @@ def getTDataByDDateIDPok(inDDate :Int, inIDPok :Int) = {
     .option("numPartitions", "1")
     .option("customSchema","DDATE INT, ID_POK INT, ID_ROW String, SVAL String")
     .option("fetchSize", "10000")
-    .load().as[T_DATA_ROW].cache()
-  t_data_ds
+    .load()
+
+  t_data_ds.explain()
+
+  t_data_ds.as[T_DATA_ROW].cache()
 }
 
 
@@ -131,15 +111,18 @@ def getTDataByDDateIDPok(inDDate :Int, inIDPok :Int) = {
 
   //dsDdatesPoks filter(r => r.ddate == 20180601 && Seq(168,502,2000,2100).contains(r.id_pok)) explain()
 
-  dsDdatesPoks filter(r => r.ddate == 20180601 && Seq(168,502,2000,2100).contains(r.id_pok)) foreach {
+  dsDdatesPoks filter(r => r.ddate == 20180601 && Seq(/*168,502,2000,*/2100).contains(r.id_pok)) foreach {
     thisRow =>
 
       val t1 = System.currentTimeMillis
       val t_data_ds = getTDataByDDateIDPok(thisRow.ddate, thisRow.id_pok)
-      logger.info(" t_data_ds.count()=" + t_data_ds.count())
-      val collect = spark_data.sparkContext.parallelize(t_data_ds.collect.toSeq)
 
-      import com.datastax.spark.connector._
+
+      //logger.info(" t_data_ds.count()=" + t_data_ds.count())
+
+
+      val collect = spark.sparkContext.parallelize(t_data_ds.collect.toSeq)
+
       collect.saveToCassandra("msk_arm_lead", "t_data")
 
       val t2 = System.currentTimeMillis
