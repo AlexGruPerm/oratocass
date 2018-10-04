@@ -15,13 +15,15 @@ object OraToCass extends App {
 
   case class DDATE_POK(ddate :Int,id_pok :Int)
   case class T_DATA_ROW(ddate: Int, id_pok :Int, id_row :String, sval :String)
+  case class T_DATA_TINY_ROW(id_row :String, sval :String)
   case class T_DATA_STATS(TABLE_NAME :String, DDATE: Int, ID_POK :Int, ID_OIV :Long, ROW_COUNT :Long, INSERT_DUR_MS :Double)
-
 
   val spark = SparkSession.builder()
     .master("spark://172.18.16.39:7077"/*"local[*]"*/)
     .appName("oratocass")
     .config("spark.cassandra.connection.host", "10.241.5.234")
+    //.config("spark.cassandra.output.concurrent.writes","3")
+    //.config("spark.cassandra.output.consistency.level","LOCAL_ONE")
     .config("spark.jars", "C:\\oratocass\\target\\scala-2.11\\oratocass_2.11-1.0.jar")
     .getOrCreate()
 
@@ -29,24 +31,10 @@ object OraToCass extends App {
   import org.apache.spark.sql.cassandra._
   spark.setCassandraConf("cass cluster", CassandraConnectorConf.ConnectionHostParam.option("10.241.5.234"))
 
-
   import spark.implicits._
 
-  def getTDataByDDateIDPok(inDDate :Int, inIDPok :Long) = {
-    val ds = spark.read.format("jdbc")
-      .option("url",url_string)
-      .option("dbtable", "Javachain_Oracle.Javachain_log")
-      .option("user","MSK_ARM_LEAD").option("password", "MSK_ARM_LEAD")
-      .option("dbtable",s"(select ddate,id_pok,id_row,val as sval from T_DATA subpartition (PART_"+inDDate+"_POK_"+inIDPok+") order by 1,2,3)")
-      .option("numPartitions", "1")
-      .option("customSchema","DDATE INT, ID_POK INT, ID_ROW String, SVAL String")
-      .option("fetchSize", "10000")
-      .load()
-    ds.as[T_DATA_ROW]//.cache()
-  }
-
   def dsDdatesPoksFiltered = {
-   val ds= spark
+    val ds= spark
       .read.format("jdbc")
       .option("url", url_string)
       .option("dbtable", "Javachain_Oracle.Javachain_log")
@@ -55,41 +43,52 @@ object OraToCass extends App {
       .option("numPartitions", "1")
       .option("customSchema", "DDATE INT,ID_POK INT")
       .load()
-    ds.as[DDATE_POK]//.cache()
+    ds.as[DDATE_POK]
   }
 
-  val t1_common = System.currentTimeMillis
+  def getTDataByDDateIDPok(inDDate :Int, inIDPok :Long) = {
+  /*
+    val ds = spark.read.format("jdbc")
+      .option("customSchema","DDATE INT, ID_POK INT, ID_ROW String, SVAL String")
+   */
 
+    val ds = spark.read.format("jdbc")
+      .option("url",url_string)
+      .option("dbtable", "Javachain_Oracle.Javachain_log")
+      .option("user","MSK_ARM_LEAD").option("password", "MSK_ARM_LEAD")
+      .option("dbtable",s"(select /*+ PARALLEL(4) */ id_row,val as sval from T_DATA where ddate="+inDDate+" and id_pok="+inIDPok+" order by id_row)")
+      .option("numPartitions", "1")
+      .option("fetchSize", "30000")
+      .load()
+    ds.as[T_DATA_TINY_ROW]
+  }
+
+
+  val t1_common = System.currentTimeMillis
   val ds =  dsDdatesPoksFiltered
-  val dsFiltered = ds//.filter(r => r.ddate == 20180601 && Seq(168,502,2000,2100).contains(r.id_pok))
+  val dsFiltered = ds.filter(r => r.ddate == 20170601 && Seq(2096).contains(r.id_pok))
 
   dsFiltered.collect().toSeq foreach {
     val t1 = System.currentTimeMillis
     thisRow =>
-    val ds = spark
-      .read.format("jdbc")
-      .option("url", url_string)
-      .option("dbtable", "Javachain_Oracle.Javachain_log")
-      .option("user", "MSK_ARM_LEAD").option("password", "MSK_ARM_LEAD")
-      .option("dbtable", s"(select ddate,id_pok,id_row,val as sval from T_DATA subpartition (PART_" + thisRow.ddate + "_POK_" + thisRow.id_pok + ") order by 1,2,3)")
-      .option("numPartitions", "1")
-      .option("customSchema", "ddate INT, id_pok INT, id_row String, sval String")
-      .option("fetchSize", "10000")
-      .load().as[T_DATA_ROW]
-
+    val ds = getTDataByDDateIDPok(thisRow.ddate,thisRow.id_pok)
       /*
        otocLogg.log.info("== > ============================================================================")
        otocLogg.log.info(" ======== "+thisRow.ddate+"   "+thisRow.id_pok+"  ds.count() = " + ds.count())
        otocLogg.log.info("== < ============================================================================")
      */
+      val rCount = ds.count()
 
-         ds.toDF("ddate", "id_pok", "id_row", "sval")
+      import org.apache.spark.sql.functions.lit
+
+      ds.toDF("id_row", "sval")
+        .withColumn("ddate",lit(thisRow.ddate))
+        .withColumn("id_pok",lit(thisRow.id_pok))
         .write
         .format("org.apache.spark.sql.cassandra")
         .options(Map("table" -> "t_data", "keyspace" -> "msk_arm_lead", "cluster" -> "cass cluster"))
         .mode(org.apache.spark.sql.SaveMode.Append).save
 
-      val rCount = ds.count()
       val t2 = System.currentTimeMillis
 
       val dsStats = Seq(new T_DATA_STATS("T_DATA", thisRow.ddate, thisRow.id_pok, 0.toLong , rCount, (t2 - t1)))
