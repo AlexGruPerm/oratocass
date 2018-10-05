@@ -9,6 +9,8 @@ object otocLogg extends Serializable {
   @transient lazy val log = LoggerFactory.getLogger(getClass.getName)
 }
 
+//log4j.appender.file.file=C:\\oratocass\\target\\scala-2.11\\log.log
+
 object OraToCass extends App {
   otocLogg.log.info("BEGIN [OraToCass]")
   val url_string       = "jdbc:oracle:thin:"+"MSK_ARM_LEAD"+"/"+"MSK_ARM_LEAD"+"@//"+"10.127.24.11:1521/test"
@@ -40,17 +42,19 @@ object OraToCass extends App {
                        )
 
   val spark = SparkSession.builder()
-    .master("spark://172.18.16.35:7077") /*"local[*]"*/
+    //.master("spark://192.168.122.219:7077"/*"spark://172.18.16.35:7077"*/) /*"local[*]"*/
     .appName("oratocass")
-    .config("spark.cassandra.connection.host", "10.241.5.234")
+    .config("spark.cassandra.connection.host","192.168.122.192")//"10.241.5.234"
     //.config("spark.cassandra.output.concurrent.writes","3")
     //.config("spark.cassandra.output.consistency.level","LOCAL_ONE")
-    .config("spark.jars", "C:\\oratocass\\target\\scala-2.11\\oratocass_2.11-1.0.jar")
+    .config("spark.jars", "/root/oratocass_v1.jar") //"C:\\oratocass\\target\\scala-2.11\\oratocass_2.11-1.0.jar"
     .getOrCreate()
+
 
   import com.datastax.spark.connector.cql.CassandraConnectorConf
   import org.apache.spark.sql.cassandra._
-  spark.setCassandraConf("cass cluster", CassandraConnectorConf.ConnectionHostParam.option("10.241.5.234"))
+  spark.setCassandraConf("cass cluster", CassandraConnectorConf.ConnectionHostParam.option("192.168.122.192"))//"10.241.5.234"
+
 
   import spark.implicits._
 
