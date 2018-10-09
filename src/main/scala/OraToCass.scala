@@ -120,8 +120,8 @@ object OraToCass extends App {
   val dsDdateOivs = getDDatesIDOiv
 
 
-  val dsDdatePoksFiltered = dsDdatePoks.filter(r => r.ddate == 20170601 && Seq(2096).contains(r.id_pok)).collect().toSeq
-  val dsDdateOivsFiltered = dsDdateOivs.filter(r => r.ddate == 20170601 && Seq(-1).contains(r.id_oiv)).collect().toSeq
+  val dsDdatePoksFiltered = dsDdatePoks/*.filter(r => r.ddate == 20170601 && Seq(2096).contains(r.id_pok))*/.collect().toSeq
+  val dsDdateOivsFiltered = dsDdateOivs/*.filter(r => r.ddate == 20170601 && Seq(-1).contains(r.id_oiv))*/.collect().toSeq
 
   dsDdatePoksFiltered foreach {
     val t1 = System.currentTimeMillis
@@ -163,7 +163,7 @@ object OraToCass extends App {
 
       val t2 = System.currentTimeMillis
       //remove it into common function with pattern matchinbg on class of thisRow
-      val dsStats = Seq(new T_DATA_STATS("T_DATA", thisRow.ddate, 0 , thisRow.id_oiv , rCount, (t2 - t1)))
+      val dsStats = Seq(new T_DATA_STATS("T_KEYS", thisRow.ddate, 0 , thisRow.id_oiv , rCount, (t2 - t1)))
         .toDF("table_name", "ddate", "id_pok", "id_oiv", "row_count", "insert_dur_ms")
         .write
         .format("org.apache.spark.sql.cassandra")
